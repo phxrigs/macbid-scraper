@@ -1,14 +1,14 @@
 {
   "name": "macbid-scraper",
   "version": "1.0.0",
-  "main": "scrape.js",
   "type": "module",
+  "main": "scrape.js",
   "scripts": {
     "start": "node scrape.js"
   },
   "dependencies": {
-    "dotenv": "^16.6.1",
-    "googleapis": "^118.0.0",
+    "dotenv": "^16.4.5",
+    "googleapis": "^133.0.0",
     "puppeteer": "^21.11.0"
   }
 }
