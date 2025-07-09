@@ -2,7 +2,8 @@ name: Scrape mac.bid and update Google Sheet
 
 on:
   schedule:
-    - cron: '*/15 22-5 * * *'  # Every 15 minutes between 3PM–10PM MST (UTC-7)
+    - cron: '*/15 22-23 * * *'  # 3:00 PM – 4:45 PM MST
+    - cron: '*/15 0-4 * * *'    # 5:00 PM – 9:45 PM MST
   workflow_dispatch:
 
 jobs:
