@@ -21,13 +21,14 @@ jobs:
 
       - name: 📦 Install dependencies
         run: npm install
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'false'
 
       - name: 🔐 Decode credentials.json from base64
         run: echo "${{ secrets.GOOGLE_CREDENTIALS_BASE64 }}" | base64 -d > credentials.json
 
       - name: 📄 Create .env file
-        run: |
-          echo "SHEET_ID=${{ secrets.SHEET_ID }}" >> .env
+        run: echo "SHEET_ID=${{ secrets.SHEET_ID }}" >> .env
 
       - name: 🚀 Run scraper
         run: npm start
