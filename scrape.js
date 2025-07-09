@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 
 console.log('🔥 THIS IS THE NEW VERSION');
+console.log('🚀 scrape.js file loaded');
 
 dotenv.config();
 
@@ -11,7 +12,21 @@ const SHEET_ID = process.env.SHEET_ID;
 const CREDENTIALS = JSON.parse(fs.readFileSync('./credentials.json'));
 
 async function scrapePrice(url) {
-  const browser = await puppeteer.launch({ headless: 'new' });
+  const browserFetcher = puppeteer.createBrowserFetcher();
+  const localRevisions = await browserFetcher.localRevisions();
+
+  if (localRevisions.length === 0) {
+    throw new Error('❌ No local Chromium revisions found. Puppeteer may not have downloaded Chromium.');
+  }
+
+  const revisionInfo = await browserFetcher.revisionInfo(localRevisions[0]);
+  console.log('🧠 Using Chromium at:', revisionInfo.executablePath);
+
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    executablePath: revisionInfo.executablePath,
+  });
+
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
@@ -50,7 +65,7 @@ async function run() {
   });
 
   const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
-  const sheetName = 'InHunt'; // Make sure this matches your actual sheet tab name
+  const sheetName = 'InHunt';
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
@@ -68,7 +83,7 @@ async function run() {
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
-    const rowIndex = i + 2; // Account for header row
+    const rowIndex = i + 2;
 
     const url = row[13]; // Column N
     const email = row[2]; // Column C
@@ -95,7 +110,7 @@ async function run() {
 
     if (bidEnd && !alertSent && email && price) {
       const bidEndTime = new Date(bidEnd);
-      const timeDiff = (bidEndTime - now) / (1000 * 60); // in minutes
+      const timeDiff = (bidEndTime - now) / (1000 * 60);
 
       if (timeDiff <= 30 && timeDiff > 0) {
         const subject = `⏰ Auction Ending Soon`;
