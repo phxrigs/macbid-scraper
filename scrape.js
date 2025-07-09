@@ -39,9 +39,12 @@ async function scrapePrice(url) {
 
 async function run() {
   const now = new Date();
-  const hour = now.getHours();
-  if (hour < 15 || hour >= 22) {
-    console.log('⏳ Outside allowed time window (3PM–10PM). Exiting.');
+// const hour = now.getHours();
+// if (hour < 15 || hour >= 22) {
+//   console.log('⏳ Outside allowed time window (3PM–10PM). Exiting.');
+//   return;
+// }
+console.log('🧪 Time window check temporarily disabled for testing.');
     return;
   }
 
