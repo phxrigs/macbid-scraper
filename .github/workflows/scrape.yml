@@ -13,6 +13,13 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v3
 
+      - name: 🐛 Debug environment before install
+        run: |
+          echo "package.json scripts:"
+          cat package.json | jq .scripts || cat package.json
+          echo "Checking .bin directory (before install):"
+          ls -l node_modules/.bin || echo "No .bin yet"
+
       - name: 📦 Install dependencies and Chromium
         run: |
           npm install
