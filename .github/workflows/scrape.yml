@@ -22,8 +22,8 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      - name: 🔐 Create credentials.json
-        run: echo "${{ secrets.GOOGLE_CREDENTIALS }}" | jq -r '.' > credentials.json
+      - name: 🔐 Decode credentials.json from base64
+        run: echo "${{ secrets.GOOGLE_CREDENTIALS_BASE64 }}" | base64 -d > credentials.json
 
       - name: 📄 Create .env file
         run: |
