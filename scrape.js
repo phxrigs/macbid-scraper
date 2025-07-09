@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import dotenv from 'dotenv';
 import fs from 'fs';
 
-console.log('🚀 scrape.js file loaded');
+console.log('🔥 THIS IS THE NEW VERSION');
 
 dotenv.config();
 
