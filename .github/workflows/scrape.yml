@@ -1,0 +1,32 @@
+name: Scrape mac.bid and update Google Sheet
+
+on:
+  schedule:
+    - cron: '*/15 22-5 * * *'  # Every 15 minutes between 3PM–10PM MST (UTC-7)
+  workflow_dispatch:
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🔐 Create credentials.json
+        run: echo "${{ secrets.GOOGLE_CREDENTIALS }}" > credentials.json
+
+      - name: 📄 Create .env file
+        run: |
+          echo "SHEET_ID=${{ secrets.SHEET_ID }}" >> .env
+
+      - name: 🚀 Run scraper
+        run: npm start
