@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
       - name: 🔐 Create credentials.json
-        run: echo "${{ secrets.GOOGLE_CREDENTIALS }}" > credentials.json
+        run: echo "${{ secrets.GOOGLE_CREDENTIALS }}" | jq -r '.' > credentials.json
 
       - name: 📄 Create .env file
         run: |
