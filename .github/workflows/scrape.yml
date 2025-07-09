@@ -3,7 +3,7 @@ name: 🔄 MacBid Scraper
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'  # every 30 minutes
+    - cron: '*/30 * * * *'
 
 jobs:
   scrape:
@@ -13,11 +13,10 @@ jobs:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v3
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install dependencies and Chromium
         run: |
           npm install
           npx puppeteer browsers install chrome
-
 
       - name: 🔐 Decode credentials.json from base64
         run: echo "${{ secrets.GOOGLE_CREDENTIALS_BASE64 }}" | base64 -d > credentials.json
