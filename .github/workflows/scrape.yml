@@ -3,7 +3,7 @@ name: 🔄 MacBid Scraper
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'  # every 30 minutes
+    - cron: '*/30 * * * *'
 
 jobs:
   scrape:
