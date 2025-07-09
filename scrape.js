@@ -12,19 +12,8 @@ const SHEET_ID = process.env.SHEET_ID;
 const CREDENTIALS = JSON.parse(fs.readFileSync('./credentials.json'));
 
 async function scrapePrice(url) {
-  const browserFetcher = puppeteer.createBrowserFetcher();
-  const localRevisions = await browserFetcher.localRevisions();
-
-  if (localRevisions.length === 0) {
-    throw new Error('❌ No local Chromium revisions found. Puppeteer may not have downloaded Chromium.');
-  }
-
-  const revisionInfo = await browserFetcher.revisionInfo(localRevisions[0]);
-  console.log('🧠 Using Chromium at:', revisionInfo.executablePath);
-
   const browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: revisionInfo.executablePath,
+    headless: 'new', // or true if you prefer
   });
 
   const page = await browser.newPage();
