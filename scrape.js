@@ -3,6 +3,8 @@ import { google } from 'googleapis';
 import dotenv from 'dotenv';
 import fs from 'fs';
 
+console.log('🚀 scrape.js file loaded');
+
 dotenv.config();
 
 const SHEET_ID = process.env.SHEET_ID;
@@ -38,15 +40,9 @@ async function scrapePrice(url) {
 }
 
 async function run() {
-// const now = new Date();
-// const hour = now.getHours();
-// if (hour < 15 || hour >= 22) {
-//   console.log('⏳ Outside allowed time window (3PM–10PM). Exiting.');
-//   return;
-// }
-console.log('🧪 Time window check temporarily disabled for testing.');
-    return;
-  }
+  console.log('🟢 run() function started');
+  const now = new Date();
+  console.log('🕒 Current time:', now.toISOString());
 
   const auth = new google.auth.GoogleAuth({
     credentials: CREDENTIALS,
@@ -54,9 +50,8 @@ console.log('🧪 Time window check temporarily disabled for testing.');
   });
 
   const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
-  const sheetName = 'InHunt'; // Change if your sheet tab has a different name
+  const sheetName = 'InHunt'; // Make sure this matches your actual sheet tab name
 
-  // Get all data
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
     range: `${sheetName}!A1:W`,
@@ -82,10 +77,13 @@ console.log('🧪 Time window check temporarily disabled for testing.');
 
     if (!url || !url.startsWith('http')) continue;
 
+    console.log(`🔍 Scraping row ${rowIndex}: ${url}`);
+
     const price = await scrapePrice(url);
     const priceToWrite = price || 'X';
 
-    // Write price to column R
+    console.log(`💰 Price for row ${rowIndex}: ${priceToWrite}`);
+
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `${sheetName}!R${rowIndex}`,
@@ -95,7 +93,6 @@ console.log('🧪 Time window check temporarily disabled for testing.');
       },
     });
 
-    // Check for alert condition
     if (bidEnd && !alertSent && email && price) {
       const bidEndTime = new Date(bidEnd);
       const timeDiff = (bidEndTime - now) / (1000 * 60); // in minutes
@@ -114,7 +111,6 @@ console.log('🧪 Time window check temporarily disabled for testing.');
             },
           });
 
-          // Log alert timestamp in column W
           await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
             range: `${sheetName}!W${rowIndex}`,
