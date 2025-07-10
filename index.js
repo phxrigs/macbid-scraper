@@ -37,10 +37,12 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const urls = urlRes.data.values || [];
   const timestamps = timeRes.data.values || [];
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+const browser = await puppeteer.launch({
+  executablePath: '/usr/bin/chromium-browser',
+  headless: 'new',
+  args: ['--no-sandbox', '--disable-setuid-sandbox']
+});
+
 
   const updates = [];
 
