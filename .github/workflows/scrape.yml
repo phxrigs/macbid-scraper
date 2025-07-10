@@ -23,9 +23,6 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      - name: 🧊 Install Chromium for Puppeteer
-        run: npx puppeteer browsers install chrome
-
       - name: 🔐 Decode credentials.json from base64
         run: echo "${{ secrets.GOOGLE_CREDENTIALS_BASE64 }}" | base64 -d > credentials.json
 
