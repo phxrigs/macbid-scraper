@@ -1,33 +1,26 @@
-name: 🔄 MacBid Scraper
+name: MacBid Scraper
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '*/30 * * * *'
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
 
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
     steps:
-      - name: ⬇️ Checkout repo
+      - name: 🛎️ Checkout repo
         uses: actions/checkout@v3
 
-      - name: 🐛 Debug environment before install
-        run: |
-          echo "package.json scripts:"
-          cat package.json | jq .scripts || cat package.json
-          echo "Checking .bin directory (before install):"
-          ls -l node_modules/.bin || echo "No .bin yet"
+      - name: 📦 Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
 
-      - name: 📦 Install dependencies
+      - name: 📁 Install dependencies
         run: npm install
 
-      - name: 🔐 Decode credentials.json from base64
-        run: echo "${{ secrets.GOOGLE_CREDENTIALS_BASE64 }}" | base64 -d > credentials.json
-
-      - name: 📄 Create .env file
-        run: echo "SHEET_ID=${{ secrets.SHEET_ID }}" >> .env
-
-      - name: 🚀 Run scraper
-        run: npm start
+      - name: 🧼 Run MacBid scraper
+        run: node index.js
