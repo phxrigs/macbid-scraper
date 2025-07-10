@@ -22,5 +22,8 @@ jobs:
       - name: 📁 Install dependencies
         run: npm install
 
+      - name: 🧭 Debug file tree
+        run: ls -R
+
       - name: 🧼 Run MacBid scraper
         run: node index.js
