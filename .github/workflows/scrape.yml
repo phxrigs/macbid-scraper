@@ -1,7 +1,7 @@
 name: MacBid Scraper
 
 on:
-  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   scrape:
@@ -14,6 +14,11 @@ jobs:
       - name: 🛎️ Checkout repo
         uses: actions/checkout@v3
 
+      - name: 🌐 Install Chrome for Puppeteer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser
+
       - name: 📦 Set up Node
         uses: actions/setup-node@v4
         with:
@@ -21,9 +26,6 @@ jobs:
 
       - name: 📁 Install dependencies
         run: npm install
-
-      - name: 🧭 Debug file tree
-        run: ls -R
 
       - name: 🧼 Run MacBid scraper
         run: node index.js
