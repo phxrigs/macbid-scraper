@@ -43,4 +43,6 @@ jobs:
         with:
           name: run-log
           path: run-log.txt
+          compression-level: 0
+
 
