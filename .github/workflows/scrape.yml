@@ -39,7 +39,8 @@ jobs:
         run: echo "Triggered at $(date -u)" > run-log.txt
 
       - name: Upload timestamp log
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: run-log
           path: run-log.txt
+
