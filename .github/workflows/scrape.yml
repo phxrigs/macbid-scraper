@@ -1,7 +1,9 @@
-name: MacBid Scraper
+name: Run Scraper
 
 on:
-  workflow_dispatch:  # Manual trigger
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:       # Manual runs via GitHub UI
 
 jobs:
   scrape:
@@ -11,21 +13,36 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
 
     steps:
-      - name: 🛎️ Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 🌐 Install Chrome for Puppeteer
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser
-
-      - name: 📦 Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '22'
 
-      - name: 📁 Install dependencies
+      - name: Clean node_modules
+        run: rm -rf node_modules
+
+      - name: Install dependencies
         run: npm install
 
-      - name: 🧼 Run MacBid scraper
+      - name: Debug Puppeteer path
+        run: |
+          node -e "console.log('Puppeteer version:', require('puppeteer/package.json').version)"
+          node -e "console.log('Executable path:', require('puppeteer').executablePath?.())"
+
+      - name: Run scraper
         run: node index.js
+
+      - name: Log run timestamp
+        run: echo "Triggered at $(date -u)" > run-log.txt
+
+      - name: Upload timestamp log
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-log
+          path: run-log.txt
+          compression-level: 0
+
+
