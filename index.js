@@ -19,30 +19,32 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const sheetName = 'InHunt';
 
   const idRange = `${sheetName}!A2:A`;
-  const idRes = await sheets.spreadsheets.values.get({
+  const rowRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: idRange,
   });
-  const rowCount = (idRes.data.values || []).length;
+  const rowCount = (rowRes.data.values || []).length;
   console.log(`📄 Found ${rowCount} rows in column A`);
 
-  const urlRange = `${sheetName}!N2:N${rowCount + 1}`;
-  const timestampRange = `${sheetName}!V2:V${rowCount + 1}`;
+  const urlRange = `${sheetName}!P2:P${rowCount + 1}`;       // Column P
+  const timestampRange = `${sheetName}!Q2:Q${rowCount + 1}`; // Column Q
+  const alertRange = `${sheetName}!S2:S${rowCount + 1}`;     // Column S
 
-  const [urlRes, timeRes] = await Promise.all([
+  const [urlRes, timeRes, alertRes] = await Promise.all([
     sheets.spreadsheets.values.get({ spreadsheetId, range: urlRange }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: timestampRange })
+    sheets.spreadsheets.values.get({ spreadsheetId, range: timestampRange }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: alertRange }),
   ]);
 
   const urls = urlRes.data.values || [];
   const timestamps = timeRes.data.values || [];
+  const alerts = alertRes.data.values || [];
 
-const browser = await puppeteer.launch({
-  executablePath: '/usr/bin/chromium-browser',
-  headless: 'new',
-  args: ['--no-sandbox', '--disable-setuid-sandbox']
-});
-
+  const browser = await puppeteer.launch({
+    executablePath: '/usr/bin/chromium-browser',
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
 
   const updates = [];
 
@@ -50,6 +52,7 @@ const browser = await puppeteer.launch({
     const rowIndex = i + 2;
     const url = urls[i]?.[0] || '';
     const timestampStr = timestamps[i]?.[0] || '';
+    const alertFlag = alerts[i]?.[0] || '';
 
     if (!url.trim()) {
       console.log(`⏭️ Skipping row ${rowIndex}: empty URL`);
@@ -59,6 +62,11 @@ const browser = await puppeteer.launch({
     const date = new Date(timestampStr);
     if (!isNaN(date) && date < new Date()) {
       console.log(`⏭️ Skipping row ${rowIndex}: timestamp has passed`);
+      continue;
+    }
+
+    if (alertFlag.trim()) {
+      console.log(`⏭️ Skipping row ${rowIndex}: already alerted`);
       continue;
     }
 
