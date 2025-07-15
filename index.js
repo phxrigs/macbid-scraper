@@ -1,6 +1,8 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
+// 🔄 Version 4 - Includes image URL scraping for Column AC
+
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
