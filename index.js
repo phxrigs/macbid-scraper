@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.1 - Embed product image in Column AC using IMAGE(..., 4, 60, 60)
+// 🔄 Version 4.2 - Embeds image preview as =IMAGE(..., 4, 60, 60) formula with USER_ENTERED mode
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -86,8 +86,8 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
         ? `=IMAGE("${imageUrl}", 4, 60, 60)`
         : '';
 
-      console.log(`💰 Price: ${price}`);
-      console.log(`🖼 Image Formula: ${imageFormula}`);
+      console.log(`💰 Row ${rowIndex}: ${price}`);
+      console.log(`🖼 Row ${rowIndex}: ${imageFormula}`);
 
       updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
       updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageFormula]] });
@@ -105,7 +105,7 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: {
-        valueInputOption: 'USER_ENTERED',
+        valueInputOption: 'USER_ENTERED',  // ✅ Enables formula rendering
         data: updates,
       },
     });
