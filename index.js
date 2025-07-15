@@ -26,9 +26,9 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const rowCount = (rowRes.data.values || []).length;
   console.log(`📄 Found ${rowCount} rows in column A`);
 
-  const urlRange = `${sheetName}!P2:P${rowCount + 1}`;       // Column P
-  const timestampRange = `${sheetName}!Q2:Q${rowCount + 1}`; // Column Q
-  const alertRange = `${sheetName}!S2:S${rowCount + 1}`;     // Column S
+  const urlRange = `${sheetName}!P2:P${rowCount + 1}`;
+  const timestampRange = `${sheetName}!Q2:Q${rowCount + 1}`;
+  const alertRange = `${sheetName}!S2:S${rowCount + 1}`;
 
   const [urlRes, timeRes, alertRes] = await Promise.all([
     sheets.spreadsheets.values.get({ spreadsheetId, range: urlRange }),
@@ -43,7 +43,7 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const browser = await puppeteer.launch({
     executablePath: '/usr/bin/chromium-browser',
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 
   const updates = [];
@@ -80,14 +80,16 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
       const spans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
-
       const price = spans[1] || 'Unavailable';
-      console.log(`💰 Row ${rowIndex}: ${price} (${Date.now() - start}ms)`);
 
-      updates.push({
-        range: `${sheetName}!R${rowIndex}`,
-        values: [[price]],
-      });
+      const imageUrl = await page.$eval('img[src^="https://m.media-amazon.com/images/"]', el => el.src)
+        .catch(() => '');
+
+      console.log(`💰 Row ${rowIndex}: ${price}`);
+      console.log(`🖼 Row ${rowIndex}: ${imageUrl}`);
+
+      updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
+      updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageUrl]] });
     } catch (err) {
       console.warn(`⚠️ Row ${rowIndex}: Failed to scrape ${url} — ${err.message}`);
     } finally {
@@ -105,7 +107,7 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
         data: updates,
       },
     });
-    console.log('✅ All prices written to column R.');
+    console.log('✅ All updates written to Columns R and AC.');
   } else {
     console.log('ℹ️ No updates applied.');
   }
