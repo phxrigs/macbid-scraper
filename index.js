@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4 - Includes image URL scraping for Column AC
+// 🔄 Version 4.1 - Embed product image in Column AC using IMAGE(..., 4, 60, 60)
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -82,11 +82,15 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
         el => el.src
       ).catch(() => '');
 
+      const imageFormula = imageUrl
+        ? `=IMAGE("${imageUrl}", 4, 60, 60)`
+        : '';
+
       console.log(`💰 Price: ${price}`);
-      console.log(`🖼 Image: ${imageUrl}`);
+      console.log(`🖼 Image Formula: ${imageFormula}`);
 
       updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
-      updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageUrl]] });
+      updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageFormula]] });
 
     } catch (err) {
       console.warn(`⚠️ Row ${rowIndex}: Scrape failed — ${err.message}`);
@@ -101,7 +105,7 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: {
-        valueInputOption: 'RAW',
+        valueInputOption: 'USER_ENTERED',
         data: updates,
       },
     });
