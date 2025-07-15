@@ -1,5 +1,4 @@
 const puppeteer = require('puppeteer');
-const fs = require('fs');
 const { google } = require('googleapis');
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -18,22 +17,17 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const spreadsheetId = '1CypDOy2PseT9FPz9cyz1JdFhsUmyfnrMGKSmJ2V0fe0';
   const sheetName = 'InHunt';
 
-  const idRange = `${sheetName}!A2:A`;
   const rowRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: idRange,
+    range: `${sheetName}!A2:A`,
   });
   const rowCount = (rowRes.data.values || []).length;
-  console.log(`📄 Found ${rowCount} rows in column A`);
-
-  const urlRange = `${sheetName}!P2:P${rowCount + 1}`;
-  const timestampRange = `${sheetName}!Q2:Q${rowCount + 1}`;
-  const alertRange = `${sheetName}!S2:S${rowCount + 1}`;
+  console.log(`📄 Found ${rowCount} rows`);
 
   const [urlRes, timeRes, alertRes] = await Promise.all([
-    sheets.spreadsheets.values.get({ spreadsheetId, range: urlRange }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: timestampRange }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: alertRange }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetName}!P2:P${rowCount + 1}` }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetName}!Q2:Q${rowCount + 1}` }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetName}!S2:S${rowCount + 1}` }),
   ]);
 
   const urls = urlRes.data.values || [];
@@ -43,35 +37,34 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const browser = await puppeteer.launch({
     executablePath: '/usr/bin/chromium-browser',
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
   const updates = [];
 
   for (let i = 0; i < urls.length; i++) {
     const rowIndex = i + 2;
-    const url = urls[i]?.[0] || '';
-    const timestampStr = timestamps[i]?.[0] || '';
-    const alertFlag = alerts[i]?.[0] || '';
+    const url = urls[i]?.[0]?.trim();
+    const timestampStr = timestamps[i]?.[0];
+    const alertFlag = alerts[i]?.[0]?.trim();
 
-    if (!url.trim()) {
-      console.log(`⏭️ Skipping row ${rowIndex}: empty URL`);
+    if (!url) {
+      console.log(`⏭️ Row ${rowIndex}: Empty URL`);
       continue;
     }
 
     const date = new Date(timestampStr);
     if (!isNaN(date) && date < new Date()) {
-      console.log(`⏭️ Skipping row ${rowIndex}: timestamp has passed`);
+      console.log(`⏭️ Row ${rowIndex}: Timestamp passed`);
       continue;
     }
 
-    if (alertFlag.trim()) {
-      console.log(`⏭️ Skipping row ${rowIndex}: already alerted`);
+    if (alertFlag) {
+      console.log(`⏭️ Row ${rowIndex}: Already alerted`);
       continue;
     }
 
     const page = await browser.newPage();
-    const start = Date.now();
 
     try {
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
@@ -82,16 +75,19 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
       );
       const price = spans[1] || 'Unavailable';
 
-      const imageUrl = await page.$eval('img[src^="https://m.media-amazon.com/images/"]', el => el.src)
-        .catch(() => '');
+      const imageUrl = await page.$eval(
+        'img[src^="https://m.media-amazon.com/images/"]',
+        el => el.src
+      ).catch(() => '');
 
-      console.log(`💰 Row ${rowIndex}: ${price}`);
-      console.log(`🖼 Row ${rowIndex}: ${imageUrl}`);
+      console.log(`💰 Price: ${price}`);
+      console.log(`🖼 Image: ${imageUrl}`);
 
       updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
       updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageUrl]] });
+
     } catch (err) {
-      console.warn(`⚠️ Row ${rowIndex}: Failed to scrape ${url} — ${err.message}`);
+      console.warn(`⚠️ Row ${rowIndex}: Scrape failed — ${err.message}`);
     } finally {
       await page.close();
     }
@@ -107,8 +103,8 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
         data: updates,
       },
     });
-    console.log('✅ All updates written to Columns R and AC.');
+    console.log(`✅ Updates written: ${updates.length} entries`);
   } else {
-    console.log('ℹ️ No updates applied.');
+    console.log('ℹ️ No new updates to apply');
   }
 })();
