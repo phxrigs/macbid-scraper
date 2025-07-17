@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.6 — Targets MacBid product image containers with robust loading logic
+// 🔄 Version 4.7 — Adds product page redirection from search results
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -70,25 +70,37 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
     try {
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
-
-      // 🔄 Wait for full network load
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
 
-      // ⏳ Explicitly wait for main image containers
+      // 🚪 Redirect if it's a search page
+      if (url.includes('/search?')) {
+        const productUrl = await page.$eval('a[href*="/lot/"]', el => el.href).catch(() => '');
+        if (!productUrl) {
+          console.warn(`🚫 Row ${rowIndex}: No product link found on search page`);
+          await page.close();
+          continue;
+        }
+
+        console.log(`↪️ Row ${rowIndex}: Redirecting to product page — ${productUrl}`);
+        await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+      }
+
+      // ⏳ Wait for image area
       await page.waitForSelector('div.cz-preview-item.active img, div.swiper-slide img', { timeout: 5000 }).catch(() =>
         console.warn(`⏳ Row ${rowIndex}: No image container appeared`)
       );
 
-      // 🔬 Optional: HTML diagnostic
+      // 🔬 Diagnostic: HTML size
       const html = await page.content();
       console.log(`🔬 Row ${rowIndex}: HTML length = ${html.length}`);
 
+      // 💰 Scrape price
       const spans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
       const price = spans[1] || 'Unavailable';
 
-      // 🖼 Target MacBid image selectors
+      // 🖼 Scrape first valid image
       const imageUrl = await page.$$eval(
         'div.cz-preview-item.active img, div.swiper-slide img',
         imgs => imgs.map(img => img.src).find(src =>
