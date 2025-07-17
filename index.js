@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.4 — Adds granular image logging for visibility
+// 🔄 Version 4.5 — Improves image load timing & logs DOM visibility
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -70,16 +70,27 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
     try {
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-      await page.waitForTimeout(1000); // Give time for images to load
+      // 🔄 Improved wait strategy
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+
+      // ⏳ Fallback wait for <img> tags
+      await page.waitForSelector('img', { timeout: 5000 }).catch(() =>
+        console.warn(`⏳ Row ${rowIndex}: No <img> appeared within timeout`)
+      );
+
+      // 🔬 Diagnostic: HTML length
+      const html = await page.content();
+      console.log(`🔬 Row ${rowIndex}: HTML length = ${html.length}`);
+
+      // 🖼 Screenshot for manual review (optional — can be commented out)
+      // await page.screenshot({ path: `row${rowIndex}.png` });
 
       const spans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
       const price = spans[1] || 'Unavailable';
 
-      // 🔎 Gather all <img> sources
       const allImageSources = await page.$$eval('img', imgs =>
         imgs.map(img => img.src)
       );
@@ -88,7 +99,6 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
         console.log(`     [${idx + 1}] ${src}`)
       );
 
-      // 🧪 Match valid image formats
       const imageUrl = allImageSources.find(src =>
         src && /\.(jpg|jpeg|png|webp|gif)$/i.test(src)
       ) || '';
