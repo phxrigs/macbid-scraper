@@ -1,7 +1,8 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { google } = require('googleapis');
 
-// 🔄 Version 5.0 — Redirect adapts if no /lot/ link is found; logs all anchors
+puppeteer.use(StealthPlugin()); // 🕵️ Enable stealth mode
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -37,9 +38,8 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const alerts = alertRes.data.values || [];
 
   const browser = await puppeteer.launch({
-    executablePath: '/usr/bin/chromium-browser',
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 
   const updates = [];
@@ -69,17 +69,19 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
     const page = await browser.newPage();
 
     try {
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0 Safari/537.36');
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'en-US,en;q=0.9',
+      });
+
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
 
-      // 🔗 Inspect all anchors on page
       const productLinks = await page.$$eval('a[href]', els =>
         els.map(el => el.href)
       );
       console.log(`🔗 Row ${rowIndex}: Found ${productLinks.length} anchor links`);
-      productLinks.forEach((link, i) => {
-        console.log(`     [${i}] ${link}`);
-      });
+      productLinks.forEach((link, i) => console.log(`     [${i}] ${link}`));
 
       const matchingLink = productLinks.find(link => link.includes('/lot/'));
       if (matchingLink) {
