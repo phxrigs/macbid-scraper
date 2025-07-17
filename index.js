@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.8 — Fixes crash on failed redirect and guards page.close()
+// 🔄 Version 4.9 — Diagnostic logging to expose image/price loading issues
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -38,7 +38,7 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
   const browser = await puppeteer.launch({
     executablePath: '/usr/bin/chromium-browser',
-    headless: 'false',
+    headless: false, // 👁️ Watch it live
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
@@ -72,16 +72,28 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
 
-      // 🚪 Redirect from search to product page
       if (url.includes('/search?')) {
+        const productLinks = await page.$$eval('a[href]', els =>
+          els.map(el => el.href)
+        );
+        console.log(`🔗 Row ${rowIndex}: Found ${productLinks.length} anchor links`);
+        productLinks.forEach((link, i) => {
+          if (link.includes('/lot/')) {
+            console.log(`🧭 Link [${i}] matches /lot/: ${link}`);
+          }
+        });
+
         const productUrl = await page.$eval('a[href*="/lot/"]', el => el.href).catch(() => '');
         if (!productUrl) {
           console.warn(`🚫 Row ${rowIndex}: No product link found on search page`);
           continue;
         }
+
         console.log(`↪️ Row ${rowIndex}: Redirecting to product page — ${productUrl}`);
         await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
       }
+
+      console.log(`📍 Row ${rowIndex}: Current page URL is ${page.url()}`);
 
       await page.waitForSelector('div.cz-preview-item.active img, div.swiper-slide img', { timeout: 5000 }).catch(() =>
         console.warn(`⏳ Row ${rowIndex}: No image container appeared`)
@@ -89,11 +101,14 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
       const html = await page.content();
       console.log(`🔬 Row ${rowIndex}: HTML length = ${html.length}`);
+      console.log(`📄 Row ${rowIndex}: HTML preview:\n${html.slice(0, 500)}`);
 
-      const spans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
+      const rawSpans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
-      const price = spans[1] || 'Unavailable';
+      console.log(`🏷️ Row ${rowIndex}: Raw price spans —`, rawSpans);
+
+      const price = rawSpans[1] || 'Unavailable';
 
       const imageUrl = await page.$$eval(
         'div.cz-preview-item.active img, div.swiper-slide img',
@@ -114,6 +129,9 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
       console.log(`💰 Row ${rowIndex}: ${price}`);
       console.log(`🖼 Formula: ${imageFormula || '[empty]'}`);
+
+      // Optional visual debug — screenshot
+      // await page.screenshot({ path: `row-${rowIndex}.png`, fullPage: true });
 
       updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
       updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageFormula]] });
