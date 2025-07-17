@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.2 - Embeds image preview as =IMAGE(..., 4, 60, 60) formula with USER_ENTERED mode
+// 🔄 Version 4.3 — Flexible image matching using regex on all <img> elements
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -77,9 +77,11 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
       );
       const price = spans[1] || 'Unavailable';
 
-      const imageUrl = await page.$eval(
-        'img[src^="https://m.media-amazon.com/images/"]',
-        el => el.src
+      // 📷 Flexible image matching — first valid image by extension
+      const imageUrl = await page.$$eval('img', imgs =>
+        imgs
+          .map(img => img.src)
+          .find(src => src && /\.(jpg|jpeg|png|webp|gif)$/i.test(src))
       ).catch(() => '');
 
       const imageFormula = imageUrl
@@ -105,7 +107,7 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: {
-        valueInputOption: 'USER_ENTERED',  // ✅ Enables formula rendering
+        valueInputOption: 'USER_ENTERED',
         data: updates,
       },
     });
