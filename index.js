@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.7 — Adds product page redirection from search results
+// 🔄 Version 4.8 — Fixes crash on failed redirect and guards page.close()
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -72,35 +72,29 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
 
-      // 🚪 Redirect if it's a search page
+      // 🚪 Redirect from search to product page
       if (url.includes('/search?')) {
         const productUrl = await page.$eval('a[href*="/lot/"]', el => el.href).catch(() => '');
         if (!productUrl) {
           console.warn(`🚫 Row ${rowIndex}: No product link found on search page`);
-          await page.close();
           continue;
         }
-
         console.log(`↪️ Row ${rowIndex}: Redirecting to product page — ${productUrl}`);
         await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
       }
 
-      // ⏳ Wait for image area
       await page.waitForSelector('div.cz-preview-item.active img, div.swiper-slide img', { timeout: 5000 }).catch(() =>
         console.warn(`⏳ Row ${rowIndex}: No image container appeared`)
       );
 
-      // 🔬 Diagnostic: HTML size
       const html = await page.content();
       console.log(`🔬 Row ${rowIndex}: HTML length = ${html.length}`);
 
-      // 💰 Scrape price
       const spans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
       const price = spans[1] || 'Unavailable';
 
-      // 🖼 Scrape first valid image
       const imageUrl = await page.$$eval(
         'div.cz-preview-item.active img, div.swiper-slide img',
         imgs => imgs.map(img => img.src).find(src =>
@@ -127,7 +121,11 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
     } catch (err) {
       console.warn(`⚠️ Row ${rowIndex}: Scrape failed — ${err.message}`);
     } finally {
-      await page.close();
+      try {
+        if (!page.isClosed()) await page.close();
+      } catch (closeErr) {
+        console.warn(`⚠️ Row ${rowIndex}: Page close error — ${closeErr.message}`);
+      }
     }
   }
 
