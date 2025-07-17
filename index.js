@@ -38,7 +38,7 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
   const browser = await puppeteer.launch({
     executablePath: '/usr/bin/chromium-browser',
-    headless: 'new',
+    headless: 'false',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
