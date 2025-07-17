@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.3 — Flexible image matching using regex on all <img> elements
+// 🔄 Version 4.4 — Adds granular image logging for visibility
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -72,24 +72,39 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
+      await page.waitForTimeout(1000); // Give time for images to load
+
       const spans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
       const price = spans[1] || 'Unavailable';
 
-      // 📷 Flexible image matching — first valid image by extension
-      const imageUrl = await page.$$eval('img', imgs =>
-        imgs
-          .map(img => img.src)
-          .find(src => src && /\.(jpg|jpeg|png|webp|gif)$/i.test(src))
-      ).catch(() => '');
+      // 🔎 Gather all <img> sources
+      const allImageSources = await page.$$eval('img', imgs =>
+        imgs.map(img => img.src)
+      );
+      console.log(`🖼️ Row ${rowIndex}: Found ${allImageSources.length} <img> tags`);
+      allImageSources.forEach((src, idx) =>
+        console.log(`     [${idx + 1}] ${src}`)
+      );
+
+      // 🧪 Match valid image formats
+      const imageUrl = allImageSources.find(src =>
+        src && /\.(jpg|jpeg|png|webp|gif)$/i.test(src)
+      ) || '';
+
+      if (imageUrl) {
+        console.log(`✅ Row ${rowIndex}: Image URL resolved — ${imageUrl}`);
+      } else {
+        console.warn(`🚫 Row ${rowIndex}: No valid image URL found`);
+      }
 
       const imageFormula = imageUrl
         ? `=IMAGE("${imageUrl}", 4, 60, 60)`
         : '';
 
       console.log(`💰 Row ${rowIndex}: ${price}`);
-      console.log(`🖼 Row ${rowIndex}: ${imageFormula}`);
+      console.log(`🖼 Formula: ${imageFormula || '[empty]'}`);
 
       updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
       updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageFormula]] });
