@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.5 — Improves image load timing & logs DOM visibility
+// 🔄 Version 4.6 — Targets MacBid product image containers with robust loading logic
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -71,37 +71,30 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
     try {
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
 
-      // 🔄 Improved wait strategy
+      // 🔄 Wait for full network load
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
 
-      // ⏳ Fallback wait for <img> tags
-      await page.waitForSelector('img', { timeout: 5000 }).catch(() =>
-        console.warn(`⏳ Row ${rowIndex}: No <img> appeared within timeout`)
+      // ⏳ Explicitly wait for main image containers
+      await page.waitForSelector('div.cz-preview-item.active img, div.swiper-slide img', { timeout: 5000 }).catch(() =>
+        console.warn(`⏳ Row ${rowIndex}: No image container appeared`)
       );
 
-      // 🔬 Diagnostic: HTML length
+      // 🔬 Optional: HTML diagnostic
       const html = await page.content();
       console.log(`🔬 Row ${rowIndex}: HTML length = ${html.length}`);
-
-      // 🖼 Screenshot for manual review (optional — can be commented out)
-      // await page.screenshot({ path: `row${rowIndex}.png` });
 
       const spans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
       const price = spans[1] || 'Unavailable';
 
-      const allImageSources = await page.$$eval('img', imgs =>
-        imgs.map(img => img.src)
-      );
-      console.log(`🖼️ Row ${rowIndex}: Found ${allImageSources.length} <img> tags`);
-      allImageSources.forEach((src, idx) =>
-        console.log(`     [${idx + 1}] ${src}`)
-      );
-
-      const imageUrl = allImageSources.find(src =>
-        src && /\.(jpg|jpeg|png|webp|gif)$/i.test(src)
-      ) || '';
+      // 🖼 Target MacBid image selectors
+      const imageUrl = await page.$$eval(
+        'div.cz-preview-item.active img, div.swiper-slide img',
+        imgs => imgs.map(img => img.src).find(src =>
+          src && /\.(jpg|jpeg|png|webp|gif)$/i.test(src)
+        )
+      ).catch(() => '');
 
       if (imageUrl) {
         console.log(`✅ Row ${rowIndex}: Image URL resolved — ${imageUrl}`);
