@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const { google } = require('googleapis');
 
-// 🔄 Version 4.9 — Diagnostic logging to expose image/price loading issues
+// 🔄 Version 5.0 — Redirect adapts if no /lot/ link is found; logs all anchors
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -37,11 +37,10 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const alerts = alertRes.data.values || [];
 
   const browser = await puppeteer.launch({
-  executablePath: '/usr/bin/chromium-browser',
-  headless: 'new', // or true for compatibility
-  args: ['--no-sandbox', '--disable-setuid-sandbox']
-});
-
+    executablePath: '/usr/bin/chromium-browser',
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
 
   const updates = [];
 
@@ -73,28 +72,24 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
 
-      if (url.includes('/search?')) {
-        const productLinks = await page.$$eval('a[href]', els =>
-          els.map(el => el.href)
-        );
-        console.log(`🔗 Row ${rowIndex}: Found ${productLinks.length} anchor links`);
-        productLinks.forEach((link, i) => {
-          if (link.includes('/lot/')) {
-            console.log(`🧭 Link [${i}] matches /lot/: ${link}`);
-          }
-        });
+      // 🔗 Inspect all anchors on page
+      const productLinks = await page.$$eval('a[href]', els =>
+        els.map(el => el.href)
+      );
+      console.log(`🔗 Row ${rowIndex}: Found ${productLinks.length} anchor links`);
+      productLinks.forEach((link, i) => {
+        console.log(`     [${i}] ${link}`);
+      });
 
-        const productUrl = await page.$eval('a[href*="/lot/"]', el => el.href).catch(() => '');
-        if (!productUrl) {
-          console.warn(`🚫 Row ${rowIndex}: No product link found on search page`);
-          continue;
-        }
-
-        console.log(`↪️ Row ${rowIndex}: Redirecting to product page — ${productUrl}`);
-        await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+      const matchingLink = productLinks.find(link => link.includes('/lot/'));
+      if (matchingLink) {
+        console.log(`↪️ Row ${rowIndex}: Redirecting to product page — ${matchingLink}`);
+        await page.goto(matchingLink, { waitUntil: 'networkidle2', timeout: 15000 });
+      } else {
+        console.log(`📎 Row ${rowIndex}: No /lot/ link found; scraping current page directly`);
       }
 
-      console.log(`📍 Row ${rowIndex}: Current page URL is ${page.url()}`);
+      console.log(`📍 Row ${rowIndex}: Final page URL — ${page.url()}`);
 
       await page.waitForSelector('div.cz-preview-item.active img, div.swiper-slide img', { timeout: 5000 }).catch(() =>
         console.warn(`⏳ Row ${rowIndex}: No image container appeared`)
@@ -130,9 +125,6 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
 
       console.log(`💰 Row ${rowIndex}: ${price}`);
       console.log(`🖼 Formula: ${imageFormula || '[empty]'}`);
-
-      // Optional visual debug — screenshot
-      // await page.screenshot({ path: `row-${rowIndex}.png`, fullPage: true });
 
       updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
       updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageFormula]] });
