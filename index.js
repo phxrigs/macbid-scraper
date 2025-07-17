@@ -37,10 +37,11 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
   const alerts = alertRes.data.values || [];
 
   const browser = await puppeteer.launch({
-    executablePath: '/usr/bin/chromium-browser',
-    headless: false, // 👁️ Watch it live
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  executablePath: '/usr/bin/chromium-browser',
+  headless: 'new', // or true for compatibility
+  args: ['--no-sandbox', '--disable-setuid-sandbox']
+});
+
 
   const updates = [];
 
