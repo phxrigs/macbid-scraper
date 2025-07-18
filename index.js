@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { google } = require('googleapis');
 
-puppeteer.use(StealthPlugin()); // 🕵️ Enable stealth mode
+puppeteer.use(StealthPlugin());
 
 const keys = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 keys.private_key = keys.private_key.replace(/\\n/g, '\n');
@@ -69,9 +69,25 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
     const page = await browser.newPage();
 
     try {
+      // 🕵️ Enhance stealth behavior
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {} };
+      });
+
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0 Safari/537.36');
-      await page.setExtraHTTPHeaders({
-        'Accept-Language': 'en-US,en;q=0.9',
+      await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
+
+      await page.setBypassCSP(true); // 🚫 Disable CSP blocking
+
+      await page.setRequestInterception(true);
+      page.on('request', req => {
+        const headers = {
+          ...req.headers(),
+          referer: 'https://vercel.com/',
+          origin: 'https://vercel.com',
+        };
+        req.continue({ headers });
       });
 
       console.log(`🔍 Visiting row ${rowIndex}: ${url}`);
@@ -81,31 +97,19 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
         els.map(el => el.href)
       );
       console.log(`🔗 Row ${rowIndex}: Found ${productLinks.length} anchor links`);
-      productLinks.forEach((link, i) => console.log(`     [${i}] ${link}`));
-
       const matchingLink = productLinks.find(link => link.includes('/lot/'));
       if (matchingLink) {
         console.log(`↪️ Row ${rowIndex}: Redirecting to product page — ${matchingLink}`);
         await page.goto(matchingLink, { waitUntil: 'networkidle2', timeout: 15000 });
-      } else {
-        console.log(`📎 Row ${rowIndex}: No /lot/ link found; scraping current page directly`);
       }
-
-      console.log(`📍 Row ${rowIndex}: Final page URL — ${page.url()}`);
 
       await page.waitForSelector('div.cz-preview-item.active img, div.swiper-slide img', { timeout: 5000 }).catch(() =>
         console.warn(`⏳ Row ${rowIndex}: No image container appeared`)
       );
 
-      const html = await page.content();
-      console.log(`🔬 Row ${rowIndex}: HTML length = ${html.length}`);
-      console.log(`📄 Row ${rowIndex}: HTML preview:\n${html.slice(0, 500)}`);
-
       const rawSpans = await page.$$eval('.h1.font-weight-normal.text-accent.mb-0 span', els =>
         els.map(el => el.textContent.trim())
       );
-      console.log(`🏷️ Row ${rowIndex}: Raw price spans —`, rawSpans);
-
       const price = rawSpans[1] || 'Unavailable';
 
       const imageUrl = await page.$$eval(
@@ -115,21 +119,16 @@ keys.private_key = keys.private_key.replace(/\\n/g, '\n');
         )
       ).catch(() => '');
 
-      if (imageUrl) {
-        console.log(`✅ Row ${rowIndex}: Image URL resolved — ${imageUrl}`);
-      } else {
-        console.warn(`🚫 Row ${rowIndex}: No valid image URL found`);
-      }
-
-      const imageFormula = imageUrl
-        ? `=IMAGE("${imageUrl}", 4, 60, 60)`
-        : '';
+      const cleanUrl = imageUrl?.split('?')[0] || '';
+      const imageFormula = cleanUrl
+        ? `=IFERROR(IMAGE("${cleanUrl}", 4, 60, 60), IMAGE("${cleanUrl}"))`
+        : 'NO IMAGE FOUND';
 
       console.log(`💰 Row ${rowIndex}: ${price}`);
-      console.log(`🖼 Formula: ${imageFormula || '[empty]'}`);
+      console.log(`🖼 Formula: ${imageFormula}`);
 
       updates.push({ range: `${sheetName}!R${rowIndex}`, values: [[price]] });
-      updates.push({ range: `${sheetName}!AC${rowIndex}`, values: [[imageFormula]] });
+      updates.push({ range: `${sheetName}!AD${rowIndex}`, values: [[imageFormula]] });
 
     } catch (err) {
       console.warn(`⚠️ Row ${rowIndex}: Scrape failed — ${err.message}`);
